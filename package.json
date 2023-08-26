@@ -22,7 +22,6 @@
   "repository": {
     "url": "https://github.com/di-sukharev/opencommit"
   },
-  "type": "module",
   "author": "https://github.com/di-sukharev",
   "license": "MIT",
   "files": [
@@ -74,6 +73,7 @@
     "ignore": "^5.2.4",
     "ini": "^3.0.1",
     "inquirer": "^9.1.4",
+    "limiter": "^2.1.0",
     "openai": "^3.2.1"
   }
 }

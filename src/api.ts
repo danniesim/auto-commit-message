@@ -16,6 +16,9 @@ import { tokenCount } from './utils/tokenCount';
 import { GenerateCommitMessageErrorEnum } from './generateCommitMessageFromGitDiff';
 import { execa } from 'execa';
 
+import { RateLimiter } from "limiter";
+
+
 const config = getConfig();
 
 let maxTokens = config?.OCO_OPENAI_MAX_TOKENS;
@@ -44,13 +47,28 @@ class OpenAi {
     apiKey: apiKey
   });
   private openAI!: OpenAIApi;
+  private limiter: RateLimiter;
 
   constructor() {
     if (basePath) {
       this.openAiApiConfiguration.basePath = basePath;
     }
     this.openAI = new OpenAIApi(this.openAiApiConfiguration);
+    // Allow 150 requests per hour (the Twitter search limit). Also understands
+    // 'second', 'minute', 'day', or a number of milliseconds
+    this.limiter = new RateLimiter({ tokensPerInterval: 200, interval: "minute" });
   }
+
+  private sendRequest = async (params: any): Promise<any> => {
+    // This call will throw if we request more than the maximum number of requests
+    // that were set in the constructor
+    // remainingRequests tells us how many additional requests could be sent
+    // right this moment
+    const remainingRequests = await this.limiter.removeTokens(1);
+    const prom = await this.openAI.createChatCompletion(params);
+    return prom;
+  }
+  
 
   public generateCommitMessage = async (
     messages: Array<ChatCompletionRequestMessage>
@@ -71,7 +89,7 @@ class OpenAi {
         throw new Error(GenerateCommitMessageErrorEnum.tooMuchTokens);
       }
 
-      const { data } = await this.openAI.createChatCompletion(params);
+      const { data } = await this.sendRequest(params);
 
       const message = data.choices[0].message;
 
