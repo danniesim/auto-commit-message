@@ -74,8 +74,8 @@ export const hookCommand = command(
         }
 
         await fs.mkdir(path.dirname(SYMLINK_URL), { recursive: true });
-        await fs.copyFile(HOOK_URL, SYMLINK_URL);
-        await fs.copyFile(path.join(HOOK_DIR, 'tiktoken_bg.wasm'), path.join(SYMLINK_DIR, 'tiktoken_bg.wasm'));
+        const hookUrlPosix = HOOK_URL.split(path.sep).join(path.posix.sep)
+        await fs.appendFile(SYMLINK_URL, '#!/usr/bin/env bash\nnode ' + hookUrlPosix + ' $@');
         await fs.chmod(SYMLINK_URL, 0o755);
 
         return outro(`${chalk.green('✔')} Hook set`);
@@ -92,15 +92,7 @@ export const hookCommand = command(
           );
         }
 
-        // const realpath = await fs.realpath(SYMLINK_URL);
-        // if (realpath !== HOOK_URL) {
-        //   return outro(
-        //     `OpenCommit wasn't previously set as '${HOOK_NAME}' hook, but different hook was, if you want to remove it — do it manually`
-        //   );
-        // }
-
         await fs.rm(SYMLINK_URL);
-        await fs.rm(path.join(SYMLINK_DIR, 'tiktoken_bg.wasm'));
         return outro(`${chalk.green('✔')} Hook is removed`);
       }
 
