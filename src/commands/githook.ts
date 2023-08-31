@@ -82,9 +82,7 @@ export const hookCommand = command(
           }
         );
       });
-    }
-
-    if (mode === 'unset') {
+    } else if (mode === 'unset') {
       intro(
         `unsetting opencommit as '${HOOK_NAME}' hook from ${SYMLINK_URL}`
       );
@@ -98,10 +96,10 @@ export const hookCommand = command(
       fs.rm(SYMLINK_URL).then(() => {
         outro(`${chalk.green('✔')} Hook is removed`);
       });
+    } else {
+      throw new Error(
+        `Unsupported mode: ${mode}. Supported modes are: 'set' or 'unset'`
+      );
     }
-
-    throw new Error(
-      `Unsupported mode: ${mode}. Supported modes are: 'set' or 'unset'`
-    );
   }
 );

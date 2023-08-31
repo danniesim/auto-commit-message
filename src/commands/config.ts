@@ -20,7 +20,8 @@ export enum CONFIG_KEYS {
   OCO_EMOJI = 'OCO_EMOJI',
   OCO_MODEL = 'OCO_MODEL',
   OCO_LANGUAGE = 'OCO_LANGUAGE',
-  OCO_MESSAGE_TEMPLATE_PLACEHOLDER = 'OCO_MESSAGE_TEMPLATE_PLACEHOLDER'
+  OCO_MESSAGE_TEMPLATE_PLACEHOLDER = 'OCO_MESSAGE_TEMPLATE_PLACEHOLDER',
+  OCO_DEFAULT_MODEL_TOKEN_LIMIT = 'OCO_DEFAULT_MODEL_TOKEN_LIMIT'
 }
 
 export const DEFAULT_MODEL_TOKEN_LIMIT = 2048;
@@ -138,7 +139,25 @@ export const configValidators = {
       `${value} must start with $, for example: '$msg'`
     );
     return value;
-  }
+  },
+  [CONFIG_KEYS.OCO_DEFAULT_MODEL_TOKEN_LIMIT](value: any) {
+    // If the value is a string, convert it to a number.
+    if (typeof value === 'string') {
+      value = parseInt(value);
+      validateConfig(
+        CONFIG_KEYS.OCO_DEFAULT_MODEL_TOKEN_LIMIT,
+        !isNaN(value),
+        'Must be a number'
+      );
+    }
+    validateConfig(
+      CONFIG_KEYS.OCO_DEFAULT_MODEL_TOKEN_LIMIT,
+      value ? typeof value === 'number' : undefined,
+      'Must be a number'
+    );
+
+    return value;
+  },
 };
 
 export type ConfigType = {
@@ -159,7 +178,8 @@ export const getConfig = (): ConfigType | null => {
     OCO_MODEL: process.env.OCO_MODEL || 'gpt-3.5-turbo-16k',
     OCO_LANGUAGE: process.env.OCO_LANGUAGE || 'en',
     OCO_MESSAGE_TEMPLATE_PLACEHOLDER:
-      process.env.OCO_MESSAGE_TEMPLATE_PLACEHOLDER || '$msg'
+      process.env.OCO_MESSAGE_TEMPLATE_PLACEHOLDER || '$msg',
+    OCO_DEFAULT_MODEL_TOKEN_LIMIT: process.env.OCO_DEFAULT_MODEL_TOKEN_LIMIT || 2048
   };
 
   const configExists = existsSync(configPath);

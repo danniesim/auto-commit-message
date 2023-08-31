@@ -3,7 +3,7 @@ import {
   ChatCompletionRequestMessageRoleEnum
 } from 'openai';
 import { api } from './api';
-import { DEFAULT_MODEL_TOKEN_LIMIT, getConfig } from './commands/config';
+import { getConfig } from './commands/config';
 import { mergeDiffs } from './utils/mergeDiffs';
 import { i18n, I18nLocals } from './i18n';
 import { tokenCount } from './utils/tokenCount';
@@ -85,6 +85,7 @@ export const generateCommitMessageByDiff = (
   diff: string,
   cb: (message: string | undefined) => void
 ) => {
+  const DEFAULT_MODEL_TOKEN_LIMIT = config?.OCO_DEFAULT_MODEL_TOKEN_LIMIT || 2048;
   const MAX_REQUEST_TOKENS =
     DEFAULT_MODEL_TOKEN_LIMIT -
     ADJUSTMENT_FACTOR -
