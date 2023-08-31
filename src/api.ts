@@ -56,7 +56,7 @@ class OpenAi {
     this.openAI = new OpenAIApi(this.openAiApiConfiguration);
     // Allow 150 requests per hour (the Twitter search limit). Also understands
     // 'second', 'minute', 'day', or a number of milliseconds
-    this.limiter = new RateLimiter({ tokensPerInterval: 200, interval: "minute" });
+    this.limiter = new RateLimiter({ tokensPerInterval: 190, interval: "minute" });
   }
 
   private sendRequest = async (params: any): Promise<any> => {
