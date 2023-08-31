@@ -207,6 +207,8 @@ export function getCommitMsgsPromisesFromFileDiffs(
   // merge multiple files-diffs into 1 prompt to save tokens
   const mergedFilesDiffs = mergeDiffs(diffByFiles, maxDiffLength);
 
+  let messagesAcc: (string | undefined)[] = [];
+
   for (const fileDiff of mergedFilesDiffs) {
     if (tokenCount(fileDiff) >= maxDiffLength) {
       // if file-diff is bigger than gpt context — split fileDiff into lineDiff
@@ -216,7 +218,7 @@ export function getCommitMsgsPromisesFromFileDiffs(
         separator,
         maxDiffLength,
         (messages: (string | undefined)[]) => {
-          cb(messages.join('\n\n'));
+          messagesAcc.push(messages.join('\n'));
         }
       );
     } else {
@@ -226,8 +228,10 @@ export function getCommitMsgsPromisesFromFileDiffs(
       );
 
       api.generateCommitMessage(messages, (commitMessage: string | undefined) => {
-        cb(commitMessage);
+        messagesAcc.push(commitMessage);
       });
     }
   }
+
+  cb(messagesAcc.join('\n\n'));
 }
