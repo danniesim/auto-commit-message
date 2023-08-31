@@ -20,8 +20,7 @@ cli(
     help: { description: packageJSON.description }
   },
   async () => {
-    await checkIsLatestVersion();
-
+    checkIsLatestVersion();
     prepareCommitMessageHook();
   },
   extraArgs

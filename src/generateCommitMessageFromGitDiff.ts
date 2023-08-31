@@ -7,6 +7,7 @@ import { DEFAULT_MODEL_TOKEN_LIMIT, getConfig } from './commands/config';
 import { mergeDiffs } from './utils/mergeDiffs';
 import { i18n, I18nLocals } from './i18n';
 import { tokenCount } from './utils/tokenCount';
+import { outro } from '@clack/prompts';
 
 const config = getConfig();
 const translation = i18n[(config?.OCO_LANGUAGE as I18nLocals) || 'en'];
@@ -75,53 +76,52 @@ export enum GenerateCommitMessageErrorEnum {
 }
 
 const INIT_MESSAGES_PROMPT_LENGTH = INIT_MESSAGES_PROMPT.map(
-  (msg) => tokenCount(msg.content) + 4
+  (msg) => tokenCount(msg.content ?? '') + 4
 ).reduce((a, b) => a + b, 0);
 
 const ADJUSTMENT_FACTOR = 20;
 
-export const generateCommitMessageByDiff = async (
-  diff: string
-): Promise<string> => {
-  try {
-    const MAX_REQUEST_TOKENS =
-      DEFAULT_MODEL_TOKEN_LIMIT -
-      ADJUSTMENT_FACTOR -
-      INIT_MESSAGES_PROMPT_LENGTH -
-      config?.OCO_OPENAI_MAX_TOKENS;
+export const generateCommitMessageByDiff = (
+  diff: string,
+  cb: (message: string | undefined) => void
+) => {
+  const MAX_REQUEST_TOKENS =
+    DEFAULT_MODEL_TOKEN_LIMIT -
+    ADJUSTMENT_FACTOR -
+    INIT_MESSAGES_PROMPT_LENGTH -
+    config?.OCO_OPENAI_MAX_TOKENS;
 
-    if (tokenCount(diff) >= MAX_REQUEST_TOKENS) {
-      const commitMessagePromises = getCommitMsgsPromisesFromFileDiffs(
-        diff,
-        MAX_REQUEST_TOKENS
-      );
+  if (MAX_REQUEST_TOKENS < 100) {
+    throw new Error(
+      'MAX_REQUEST_TOKENS is too small. Please, decrease OCO_OPENAI_MAX_TOKENS or increase DEFAULT_MODEL_TOKEN_LIMIT'
+    );
+  }
 
-      const commitMessages = [];
-      for (const promise of commitMessagePromises) {
-        commitMessages.push(await promise);
-        await delay(2000);
+  if (tokenCount(diff) >= MAX_REQUEST_TOKENS) {
+    outro('diff is bigger than gpt context — split diff into file-diffs');
+    getCommitMsgsPromisesFromFileDiffs(
+      diff,
+      MAX_REQUEST_TOKENS,
+      (message: string | undefined) => {
+        cb(message);
       }
+    );
+  } else {
+    const messages = generateCommitMessageChatCompletionPrompt(diff);
 
-      return commitMessages.join('\n\n');
-    } else {
-      const messages = generateCommitMessageChatCompletionPrompt(diff);
-
-      const commitMessage = await api.generateCommitMessage(messages);
-
+    api.generateCommitMessage(messages, (commitMessage: string | undefined) => {
       if (!commitMessage)
         throw new Error(GenerateCommitMessageErrorEnum.emptyMessage);
-
-      return commitMessage;
-    }
-  } catch (error) {
-    throw error;
+      cb(commitMessage);
+    });
   }
 };
 
-function getMessagesPromisesByChangesInFile(
+function getMessagesByChangesInFile(
   fileDiff: string,
   separator: string,
-  maxChangeLength: number
+  maxChangeLength: number,
+  cb: (messages: (string | undefined)[]) => void
 ) {
   const hunkHeaderSeparator = '@@ ';
   const [fileHeader, ...fileDiffByLines] = fileDiff.split(hunkHeaderSeparator);
@@ -137,6 +137,7 @@ function getMessagesPromisesByChangesInFile(
     const totalChange = fileHeader + change;
     if (tokenCount(totalChange) > maxChangeLength) {
       // If the totalChange is too large, split it into smaller pieces
+      outro('totalChange is too large, split it into smaller pieces');
       const splitChanges = splitDiff(totalChange, maxChangeLength);
       lineDiffsWithHeader.push(...splitChanges);
     } else {
@@ -144,15 +145,19 @@ function getMessagesPromisesByChangesInFile(
     }
   }
 
-  const commitMsgsFromFileLineDiffs = lineDiffsWithHeader.map((lineDiff) => {
+  let commitMsgsFromFileLineDiffs: (string | undefined)[] = [];
+
+  lineDiffsWithHeader.forEach((lineDiff) => {
     const messages = generateCommitMessageChatCompletionPrompt(
       separator + lineDiff
     );
 
-    return api.generateCommitMessage(messages);
+    api.generateCommitMessage(messages, (commitMessage: string | undefined) => {
+      commitMsgsFromFileLineDiffs.push(commitMessage);
+      if (commitMsgsFromFileLineDiffs.length === lineDiffsWithHeader.length)
+        cb(commitMsgsFromFileLineDiffs);
+    });
   });
-
-  return commitMsgsFromFileLineDiffs;
 }
 
 function splitDiff(diff: string, maxChangeLength: number) {
@@ -163,6 +168,7 @@ function splitDiff(diff: string, maxChangeLength: number) {
   for (let line of lines) {
     // If a single line exceeds maxChangeLength, split it into multiple lines
     while (tokenCount(line) > maxChangeLength) {
+      outro('line exceeds maxChangeLength, split it into multiple lines');
       const subLine = line.substring(0, maxChangeLength);
       line = line.substring(maxChangeLength);
       splitDiffs.push(subLine);
@@ -171,6 +177,7 @@ function splitDiff(diff: string, maxChangeLength: number) {
     // Check the tokenCount of the currentDiff and the line separately
     if (tokenCount(currentDiff) + tokenCount('\n' + line) > maxChangeLength) {
       // If adding the next line would exceed the maxChangeLength, start a new diff
+      outro('adding the next line would exceed the maxChangeLength, start a new diff');
       splitDiffs.push(currentDiff);
       currentDiff = line;
     } else {
@@ -189,7 +196,8 @@ function splitDiff(diff: string, maxChangeLength: number) {
 
 export function getCommitMsgsPromisesFromFileDiffs(
   diff: string,
-  maxDiffLength: number
+  maxDiffLength: number,
+  cb: (message: string | undefined) => void
 ) {
   const separator = 'diff --git ';
 
@@ -198,30 +206,27 @@ export function getCommitMsgsPromisesFromFileDiffs(
   // merge multiple files-diffs into 1 prompt to save tokens
   const mergedFilesDiffs = mergeDiffs(diffByFiles, maxDiffLength);
 
-  const commitMessagePromises = [];
-
   for (const fileDiff of mergedFilesDiffs) {
     if (tokenCount(fileDiff) >= maxDiffLength) {
       // if file-diff is bigger than gpt context — split fileDiff into lineDiff
-      const messagesPromises = getMessagesPromisesByChangesInFile(
+      outro('file-diff is bigger than gpt context — split fileDiff into lineDiff');
+      getMessagesByChangesInFile(
         fileDiff,
         separator,
-        maxDiffLength
+        maxDiffLength,
+        (messages: (string | undefined)[]) => {
+          cb(messages.join('\n\n'));
+        }
       );
-
-      commitMessagePromises.push(...messagesPromises);
     } else {
+      outro('Generating commit message from file-diff');
       const messages = generateCommitMessageChatCompletionPrompt(
         separator + fileDiff
       );
 
-      commitMessagePromises.push(api.generateCommitMessage(messages));
+      api.generateCommitMessage(messages, (commitMessage: string | undefined) => {
+        cb(commitMessage);
+      });
     }
   }
-
-  return commitMessagePromises;
-}
-
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

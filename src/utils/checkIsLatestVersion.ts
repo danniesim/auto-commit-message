@@ -3,8 +3,8 @@ import currentPackage from '../../package.json' assert { type: 'json' };
 import chalk from 'chalk';
 import { outro } from '@clack/prompts';
 
-export const checkIsLatestVersion = async () => {
-  const latestVersion = await getOpenCommitLatestVersion();
+export const checkIsLatestVersion = () => {
+  const latestVersion = getOpenCommitLatestVersion();
 
   if (latestVersion) {
     const currentVersion = currentPackage.version;

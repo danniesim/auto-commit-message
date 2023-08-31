@@ -1,10 +1,9 @@
 import { intro, outro } from '@clack/prompts';
-import axios from 'axios';
-import chalk from 'chalk';
 import {
   ChatCompletionRequestMessage,
   Configuration as OpenAiApiConfiguration,
-  OpenAIApi
+  OpenAIApi,
+  CreateChatCompletionResponse
 } from 'openai';
 
 import {
@@ -14,10 +13,7 @@ import {
 } from './commands/config';
 import { tokenCount } from './utils/tokenCount';
 import { GenerateCommitMessageErrorEnum } from './generateCommitMessageFromGitDiff';
-import { execa } from 'execa';
-
-import { RateLimiter } from "limiter";
-
+import { execaSync } from 'execa';
 
 const config = getConfig();
 
@@ -47,32 +43,45 @@ class OpenAi {
     apiKey: apiKey
   });
   private openAI!: OpenAIApi;
-  private limiter: RateLimiter;
+  // private limiter: RateLimiter;
 
   constructor() {
     if (basePath) {
       this.openAiApiConfiguration.basePath = basePath;
     }
     this.openAI = new OpenAIApi(this.openAiApiConfiguration);
-    // Allow 150 requests per hour (the Twitter search limit). Also understands
-    // 'second', 'minute', 'day', or a number of milliseconds
-    this.limiter = new RateLimiter({ tokensPerInterval: 190, interval: "minute" });
   }
 
-  private sendRequest = async (params: any): Promise<any> => {
-    // This call will throw if we request more than the maximum number of requests
-    // that were set in the constructor
-    // remainingRequests tells us how many additional requests could be sent
-    // right this moment
-    const remainingRequests = await this.limiter.removeTokens(1);
-    const prom = await this.openAI.createChatCompletion(params);
-    return prom;
+  private sendRequest = (params: any, callback: (message: CreateChatCompletionResponse) => void): any => {
+    let tries = 1;
+    const f = () => {
+      outro(`Retrying request ${tries}...`)
+      this.openAI.createChatCompletion(params)
+      .then((res) => callback(res.data))
+      .catch((err) => {
+        tries = tries + 1;
+        if (err.response.status == 429 && tries < 10) {
+          let resetReq =  Number(err.response.headers["x-ratelimit-reset-requests"].match(/(\d+)/)[0]);
+          if (!err.response.headers["x-ratelimit-reset-requests"].endsWith("ms")) resetReq = resetReq * 1000;
+
+          let resetTok = Number(err.response.headers["x-ratelimit-reset-tokens"].match(/(\d+)/)[0]);
+          if (!err.response.headers["x-ratelimit-reset-tokens"].endsWith("ms")) resetTok = resetTok * 1000;
+
+          const delayMs = Math.max(resetReq, resetTok);
+          outro(`Rate limit exceeded, retrying in ${delayMs / 1000} seconds...`)
+          setTimeout(f, delayMs);
+        } else {
+          throw err;
+        }
+      });
+    };
+    f();
   }
   
-
-  public generateCommitMessage = async (
-    messages: Array<ChatCompletionRequestMessage>
-  ): Promise<string | undefined> => {
+  public generateCommitMessage = (
+    messages: Array<ChatCompletionRequestMessage>,
+    cb: (message: string | undefined) => void
+  ) => {
     const params = {
       model: MODEL,
       messages,
@@ -80,53 +89,32 @@ class OpenAi {
       top_p: 0.1,
       max_tokens: maxTokens || 500
     };
-    try {
-      const REQUEST_TOKENS = messages
-        .map((msg) => tokenCount(msg.content) + 4)
-        .reduce((a, b) => a + b, 0);
+    const REQUEST_TOKENS = messages
+      .map((msg) => tokenCount(msg.content ?? '') + 4)
+      .reduce((a, b) => a + b, 0);
 
-      if (REQUEST_TOKENS > DEFAULT_MODEL_TOKEN_LIMIT - maxTokens) {
-        throw new Error(GenerateCommitMessageErrorEnum.tooMuchTokens);
-      }
-
-      const { data } = await this.sendRequest(params);
-
-      const message = data.choices[0].message;
-
-      return message?.content;
-    } catch (error) {
-      outro(`${chalk.red('✖')} ${JSON.stringify(params)}`);
-
-      const err = error as Error;
-      outro(`${chalk.red('✖')} ${err?.message || err}`);
-
-      if (
-        axios.isAxiosError<{ error?: { message: string } }>(error) &&
-        error.response?.status === 401
-      ) {
-        const openAiError = error.response.data.error;
-
-        if (openAiError?.message) outro(openAiError.message);
-        outro(
-          'For help look into README https://github.com/di-sukharev/opencommit#setup'
-        );
-      }
-
-      throw err;
+    if (REQUEST_TOKENS > DEFAULT_MODEL_TOKEN_LIMIT - maxTokens) {
+      throw new Error(GenerateCommitMessageErrorEnum.tooMuchTokens);
     }
-  };
+
+    this.sendRequest(params,
+      (data: any) => {
+        const message = data.choices[0].message;
+        cb(message?.content);
+      });
+  }
 }
 
-export const getOpenCommitLatestVersion = async (): Promise<
-  string | undefined
-> => {
+export const getOpenCommitLatestVersion = ():
+  string | undefined => {
   try {
-    const { stdout } = await execa('npm', ['view', 'opencommit', 'version']);
+    const { stdout } = execaSync('npm', ['view', 'opencommit', 'version']);
     return stdout;
   } catch (_) {
     outro('Error while getting the latest version of opencommit');
     return undefined;
   }
 };
+
 
 export const api = new OpenAi();

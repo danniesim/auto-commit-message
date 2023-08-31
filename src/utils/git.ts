@@ -1,11 +1,11 @@
-import { execa } from 'execa';
+import { execaSync } from 'execa';
 import { outro, spinner } from '@clack/prompts';
 import { readFileSync } from 'fs';
 import ignore, { Ignore } from 'ignore';
 
-export const assertGitRepo = async () => {
+export const assertGitRepo = () => {
   try {
-    await execa('git', ['rev-parse']);
+    execaSync('git', ['rev-parse']);
   } catch (error) {
     throw new Error(error as string);
   }
@@ -25,19 +25,19 @@ export const getOpenCommitIgnore = (): Ignore => {
   return ig;
 };
 
-export const getCoreHooksPath = async (): Promise<string> => {
-  const { stdout } = await execa('git', ['config', 'core.hooksPath']);
+export const getCoreHooksPath = (): string => {
+  const { stdout } = execaSync('git', ['config', 'core.hooksPath']);
 
   return stdout;
 };
 
-export const getStagedFiles = async (): Promise<string[]> => {
-  const { stdout: gitDir } = await execa('git', [
+export const getStagedFiles = (): string[] => {
+  const { stdout: gitDir } = execaSync('git', [
     'rev-parse',
     '--show-toplevel'
   ]);
 
-  const { stdout: files } = await execa('git', [
+  const { stdout: files } = execaSync('git', [
     'diff',
     '--name-only',
     '--cached',
@@ -57,9 +57,9 @@ export const getStagedFiles = async (): Promise<string[]> => {
   return allowedFiles.sort();
 };
 
-export const getChangedFiles = async (): Promise<string[]> => {
-  const { stdout: modified } = await execa('git', ['ls-files', '--modified']);
-  const { stdout: others } = await execa('git', [
+export const getChangedFiles = (): string[] => {
+  const { stdout: modified } = execaSync('git', ['ls-files', '--modified']);
+  const { stdout: others } = execaSync('git', [
     'ls-files',
     '--others',
     '--exclude-standard'
@@ -72,14 +72,14 @@ export const getChangedFiles = async (): Promise<string[]> => {
   return files.sort();
 };
 
-export const gitAdd = async ({ files }: { files: string[] }) => {
+export const gitAdd = ({ files }: { files: string[] }) => {
   const gitAddSpinner = spinner();
   gitAddSpinner.start('Adding files to commit');
-  await execa('git', ['add', ...files]);
+  execaSync('git', ['add', ...files]);
   gitAddSpinner.stop('Done');
 };
 
-export const getDiff = async ({ files }: { files: string[] }) => {
+export const getDiff = (files: string[]): string => {
   const lockFiles = files.filter(
     (file) =>
       file.includes('.lock') ||
@@ -104,7 +104,7 @@ export const getDiff = async ({ files }: { files: string[] }) => {
     (file) => !file.includes('.lock') && !file.includes('-lock.')
   );
 
-  const { stdout: diff } = await execa('git', [
+  const { stdout: diff } = execaSync('git', [
     'diff',
     '--staged',
     '--',
