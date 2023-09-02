@@ -7,7 +7,7 @@ import { getConfig } from './commands/config';
 import { mergeDiffs } from './utils/mergeDiffs';
 import { i18n, I18nLocals } from './i18n';
 import { tokenCount } from './utils/tokenCount';
-import { outro } from '@clack/prompts';
+import winston from 'winston';
 
 const config = getConfig();
 const translation = i18n[(config?.OCO_LANGUAGE as I18nLocals) || 'en'];
@@ -98,9 +98,10 @@ export const generateCommitMessageByDiff = (
     );
   }
 
-  if (tokenCount(diff) >= MAX_REQUEST_TOKENS) {
-    outro('diff is bigger than gpt context — split diff into file-diffs');
-    getCommitMsgsPromisesFromFileDiffs(
+  const diffTokCount = tokenCount(diff);
+  if (diffTokCount >= MAX_REQUEST_TOKENS) {
+    winston.info(`diff ${diffTokCount} is bigger than gpt context — split diff into file-diffs`);
+    getCommitMsgsFromFileDiffs(
       diff,
       MAX_REQUEST_TOKENS,
       (message: string | undefined) => {
@@ -128,37 +129,46 @@ function getMessagesByChangesInFile(
   const [fileHeader, ...fileDiffByLines] = fileDiff.split(hunkHeaderSeparator);
 
   // merge multiple line-diffs into 1 to save tokens
+  winston.info('merge multiple line-diffs into 1 to save tokens');
   const mergedChanges = mergeDiffs(
     fileDiffByLines.map((line) => hunkHeaderSeparator + line),
     maxChangeLength
   );
 
-  const lineDiffsWithHeader = [];
-  for (const change of mergedChanges) {
-    const totalChange = fileHeader + change;
-    if (tokenCount(totalChange) > maxChangeLength) {
-      // If the totalChange is too large, split it into smaller pieces
-      outro('totalChange is too large, split it into smaller pieces');
-      const splitChanges = splitDiff(totalChange, maxChangeLength);
-      lineDiffsWithHeader.push(...splitChanges);
-    } else {
-      lineDiffsWithHeader.push(totalChange);
-    }
-  }
-
+  let requestCount = 0;
   let commitMsgsFromFileLineDiffs: (string | undefined)[] = [];
 
-  lineDiffsWithHeader.forEach((lineDiff) => {
+  const f = (lineDiff: string) => {
     const messages = generateCommitMessageChatCompletionPrompt(
       separator + lineDiff
     );
 
+    // generate commit message from line-diff
+    
+    requestCount = requestCount + 1;
+    winston.info(`generate commit message from line-diff (${requestCount})`);
     api.generateCommitMessage(messages, (commitMessage: string | undefined) => {
       commitMsgsFromFileLineDiffs.push(commitMessage);
-      if (commitMsgsFromFileLineDiffs.length === lineDiffsWithHeader.length)
+      winston.info(`line-diff generate complete (${commitMsgsFromFileLineDiffs.length} of ${requestCount})`);
+      if (commitMsgsFromFileLineDiffs.length === requestCount) {
         cb(commitMsgsFromFileLineDiffs);
+      }
     });
-  });
+  }
+
+  for (const change of mergedChanges) {
+    const totalChange = fileHeader + change;
+    const changeTokCount = tokenCount(totalChange);
+    if (changeTokCount > maxChangeLength) {
+      // If the totalChange is too large, split it into smaller pieces
+      winston.info(`totalChange (${changeTokCount}) is too large, split it into smaller pieces`);
+      const splitChanges = splitDiff(totalChange, maxChangeLength);
+      splitChanges.forEach(f);
+    } else {
+      winston.info(`totalChange (${changeTokCount}) accepted.`);
+      f(totalChange)
+    }
+  }
 }
 
 function splitDiff(diff: string, maxChangeLength: number) {
@@ -169,18 +179,20 @@ function splitDiff(diff: string, maxChangeLength: number) {
   for (let line of lines) {
     // If a single line exceeds maxChangeLength, split it into multiple lines
     while (tokenCount(line) > maxChangeLength) {
-      outro('line exceeds maxChangeLength, split it into multiple lines');
+      winston.info('line exceeds maxChangeLength, split it into multiple lines');
       const subLine = line.substring(0, maxChangeLength);
       line = line.substring(maxChangeLength);
       splitDiffs.push(subLine);
     }
 
+    const nextLineAddTokenCount = tokenCount(currentDiff) + tokenCount(line) + 1;
     // Check the tokenCount of the currentDiff and the line separately
-    if (tokenCount(currentDiff) + tokenCount('\n' + line) > maxChangeLength) {
+    if (nextLineAddTokenCount > maxChangeLength) {
       // If adding the next line would exceed the maxChangeLength, start a new diff
-      outro('adding the next line would exceed the maxChangeLength, start a new diff');
+      winston.info(`adding the next line (${nextLineAddTokenCount}) would exceed the maxChangeLength (${maxChangeLength}), start a new diff`);
       splitDiffs.push(currentDiff);
       currentDiff = line;
+
     } else {
       // Otherwise, add the line to the current diff
       currentDiff += '\n' + line;
@@ -195,7 +207,7 @@ function splitDiff(diff: string, maxChangeLength: number) {
   return splitDiffs;
 }
 
-export function getCommitMsgsPromisesFromFileDiffs(
+export function getCommitMsgsFromFileDiffs(
   diff: string,
   maxDiffLength: number,
   cb: (message: string | undefined) => void
@@ -210,9 +222,10 @@ export function getCommitMsgsPromisesFromFileDiffs(
   let messagesAcc: (string | undefined)[] = [];
 
   for (const fileDiff of mergedFilesDiffs) {
-    if (tokenCount(fileDiff) >= maxDiffLength) {
+    const tokCount = tokenCount(fileDiff)
+    if (tokCount >= maxDiffLength) {
       // if file-diff is bigger than gpt context — split fileDiff into lineDiff
-      outro('file-diff is bigger than gpt context — split fileDiff into lineDiff');
+      winston.info(`fileDiff (${tokCount}) is bigger than max gpt context (${maxDiffLength}) — splitting fileDiff into lineDiff`);
       getMessagesByChangesInFile(
         fileDiff,
         separator,
@@ -222,7 +235,7 @@ export function getCommitMsgsPromisesFromFileDiffs(
         }
       );
     } else {
-      outro('Generating commit message from file-diff');
+      winston.info('generating commit message from file-diff (${tokCount})');
       const messages = generateCommitMessageChatCompletionPrompt(
         separator + fileDiff
       );
@@ -233,5 +246,13 @@ export function getCommitMsgsPromisesFromFileDiffs(
     }
   }
 
-  cb(messagesAcc.join('\n\n'));
+  const f = () => {
+    setTimeout(() => {
+      if (messagesAcc.length === mergedFilesDiffs.length)
+        cb(messagesAcc.join('\n\n'));
+      else f();
+    }, 100);
+  }
+
+  f();
 }

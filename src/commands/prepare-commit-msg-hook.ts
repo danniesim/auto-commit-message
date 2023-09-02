@@ -1,9 +1,11 @@
 import fs from 'fs/promises';
-import { intro, outro, spinner } from '@clack/prompts';
+import winston from 'winston';
 import { getChangedFiles, getDiff, getStagedFiles, gitAdd } from '../utils/git';
 import { getConfig } from './config';
 import { generateCommitMessageByDiff } from '../generateCommitMessageFromGitDiff';
 import { sleep } from '../utils/sleep';
+
+winston.add(new winston.transports.Console());
 
 const [messageFilePath, commitSource] = process.argv.slice(2);
 
@@ -17,7 +19,7 @@ export const prepareCommitMessageHook = async (
   }
 
   if (commitSource) {
-    outro('Commit source in args, skipping');
+    winston.info('Commit source in args, skipping');
     return;
   }
 
@@ -26,7 +28,7 @@ export const prepareCommitMessageHook = async (
 
     if (changedFiles) gitAdd({ files: changedFiles });
     else {
-      outro('No changes detected, write some code and run `oco` again');
+      winston.info('No changes detected, write some code and run `oco` again');
       process.exit(1);
     }
   }
@@ -35,7 +37,7 @@ export const prepareCommitMessageHook = async (
 
   if (!staged) return;
 
-  intro('opencommit');
+  winston.info('opencommit');
 
   const config = getConfig();
 
@@ -45,8 +47,7 @@ export const prepareCommitMessageHook = async (
     );
   }
 
-  const spin = spinner();
-  spin.start('Generating commit message');
+  winston.info('Generating commit message');
 
   let done: boolean = false;
 
@@ -54,7 +55,7 @@ export const prepareCommitMessageHook = async (
     getDiff(staged),
     (message: string | undefined) => {
       if (message) {
-        outro('Generated commit message to add');
+        winston.info('generated commit message to add');
         fs.readFile(messageFilePath).then((fileContent) => {
           fs.writeFile(
             messageFilePath,
@@ -62,7 +63,8 @@ export const prepareCommitMessageHook = async (
           ).then(() => done = true);
         });
       } else {
-        outro("Couldn't generate commit message");
+        winston.info("couldn't generate commit message");
+        done = true
       }
     }
   );
@@ -70,5 +72,5 @@ export const prepareCommitMessageHook = async (
   while (!done) {
     await sleep(1000);
   }
-  spin.stop('Done');
+  winston.info('done');
 };

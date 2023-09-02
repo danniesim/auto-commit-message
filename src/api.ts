@@ -1,4 +1,4 @@
-import { intro, outro } from '@clack/prompts';
+import winston from 'winston';
 import {
   ChatCompletionRequestMessage,
   Configuration as OpenAiApiConfiguration,
@@ -23,12 +23,12 @@ let apiKey = config?.OCO_OPENAI_API_KEY;
 const [command, mode] = process.argv.slice(2);
 
 if (!apiKey && command !== 'config' && mode !== CONFIG_MODES.set) {
-  intro('opencommit');
+  winston.info('opencommit');
 
-  outro(
+  winston.info(
     'OCO_OPENAI_API_KEY is not set, please run `oco config set OCO_OPENAI_API_KEY=<your token>. Make sure you add payment details, so API works.`'
   );
-  outro(
+  winston.info(
     'For help look into README https://github.com/di-sukharev/opencommit#setup'
   );
 
@@ -42,7 +42,6 @@ class OpenAi {
     apiKey: apiKey
   });
   private openAI!: OpenAIApi;
-  // private limiter: RateLimiter;
 
   constructor() {
     if (basePath) {
@@ -54,9 +53,10 @@ class OpenAi {
   private sendRequest = (params: any, callback: (message: CreateChatCompletionResponse) => void): any => {
     let tries = 1;
     const f = () => {
-      outro(`Retrying request ${tries}...`)
       this.openAI.createChatCompletion(params)
-      .then((res) => callback(res.data))
+      .then((res) => {
+        callback(res.data);
+      })
       .catch((err) => {
         tries = tries + 1;
         if (err.response.status == 429 && tries < 10) {
@@ -67,7 +67,7 @@ class OpenAi {
           if (!err.response.headers["x-ratelimit-reset-tokens"].endsWith("ms")) resetTok = resetTok * 1000;
 
           const delayMs = Math.max(resetReq, resetTok);
-          outro(`Rate limit exceeded, retrying in ${delayMs / 1000} seconds...`)
+          winston.info(`Rate limit exceeded, retrying in ${delayMs / 1000} seconds... tries: ${tries}`)
           setTimeout(f, delayMs);
         } else {
           throw err;
@@ -112,7 +112,7 @@ export const getOpenCommitLatestVersion = ():
     const { stdout } = execaSync('npm', ['view', 'opencommit', 'version']);
     return stdout;
   } catch (_) {
-    outro('Error while getting the latest version of opencommit');
+    winston.info('Error while getting the latest version of opencommit');
     return undefined;
   }
 };

@@ -1,5 +1,5 @@
 import { execaSync } from 'execa';
-import { outro, spinner } from '@clack/prompts';
+import winston from 'winston';
 import { readFileSync } from 'fs';
 import ignore, { Ignore } from 'ignore';
 
@@ -32,11 +32,12 @@ export const getCoreHooksPath = (): string => {
 };
 
 export const getStagedFiles = (): string[] => {
+  winston.info('gitting root directory');
   const { stdout: gitDir } = execaSync('git', [
     'rev-parse',
     '--show-toplevel'
   ]);
-
+  winston.info('gitting staged files');
   const { stdout: files } = execaSync('git', [
     'diff',
     '--name-only',
@@ -58,6 +59,7 @@ export const getStagedFiles = (): string[] => {
 };
 
 export const getChangedFiles = (): string[] => {
+  winston.info('gitting changed files');
   const { stdout: modified } = execaSync('git', ['ls-files', '--modified']);
   const { stdout: others } = execaSync('git', [
     'ls-files',
@@ -73,10 +75,9 @@ export const getChangedFiles = (): string[] => {
 };
 
 export const gitAdd = ({ files }: { files: string[] }) => {
-  const gitAddSpinner = spinner();
-  gitAddSpinner.start('Adding files to commit');
+  winston.info('Adding files to commit');
   execaSync('git', ['add', ...files]);
-  gitAddSpinner.stop('Done');
+  winston.info('Done');
 };
 
 export const getDiff = (files: string[]): string => {
@@ -93,7 +94,7 @@ export const getDiff = (files: string[]): string => {
   );
 
   if (lockFiles.length) {
-    outro(
+    winston.info(
       `Some files are excluded by default from 'git diff'. No commit messages are generated for this files:\n${lockFiles.join(
         '\n'
       )}`
@@ -104,6 +105,7 @@ export const getDiff = (files: string[]): string => {
     (file) => !file.includes('.lock') && !file.includes('-lock.')
   );
 
+  winston.info('gitting diff');
   const { stdout: diff } = execaSync('git', [
     'diff',
     '--staged',
