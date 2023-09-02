@@ -4,9 +4,10 @@ import { command } from 'cleye';
 import { assertGitRepo, getCoreHooksPath } from '../utils/git.js';
 import { existsSync } from 'fs';
 import chalk from 'chalk';
-import { intro, outro } from '@clack/prompts';
+import { intro, outro, select } from '@clack/prompts';
 import { COMMANDS } from '../CommandsEnum.js';
 import { execaSync } from 'execa';
+import { exit } from 'process';
 
 
 const HOOK_NAME = 'prepare-commit-msg';
@@ -53,26 +54,9 @@ export const hookCommand = command(
     const { setUnset: mode } = argv._;
 
     if (mode === 'set') {
-      intro(`setting opencommit as '${HOOK_NAME}' hook at ${SYMLINK_URL}`);
+      intro(`setting AutoCommitMessage as '${HOOK_NAME}' hook at ${SYMLINK_URL}`);
 
-      // if (isHookExists()) {
-      //   let realPath;
-      //   try {
-      //     realPath = fs.realpath(SYMLINK_URL).;
-      //   } catch (error) {
-      //     outro(error as string);
-      //     realPath = null;
-      //   }
-
-      //   if (realPath === HOOK_URL)
-      //     return outro(`OpenCommit is already set as '${HOOK_NAME}'`);
-
-      //   throw new Error(
-      //     `Different ${HOOK_NAME} is already set. Remove it before setting opencommit as '${HOOK_NAME}' hook.`
-      //   );
-      // }
-
-      fs.mkdir(path.dirname(SYMLINK_URL), { recursive: true }).then(() => {
+      const createHook = () => {
         const hookUrlPosix = HOOK_URL.split(path.sep).join(path.posix.sep);
         fs.appendFile(SYMLINK_URL, '#!/usr/bin/env bash\nnode ' + hookUrlPosix + ' $@').then(
           () => {
@@ -81,7 +65,32 @@ export const hookCommand = command(
             });
           }
         );
-      });
+      }
+
+      if (isHookExists()) {
+        select({
+          options: [
+            { value: 'Yes', label: 'Yes' },
+            { value: 'No', label: 'No' }
+          ],
+          message: `A git hook: ${HOOK_NAME} already exists for this repo. Do you want to overwrite it?`
+        })
+        .then((answer) => {
+          if (answer === 'Yes') {
+            fs.rm(SYMLINK_URL).then(() => {
+              createHook();
+            });
+          } else {
+            outro(`Aborted`);
+            exit(1);
+          }
+        });
+      } else {
+        fs.mkdir(path.dirname(SYMLINK_URL), { recursive: true })
+        .then(() => {
+          createHook();
+        });
+      }
     } else if (mode === 'unset') {
       intro(
         `unsetting opencommit as '${HOOK_NAME}' hook from ${SYMLINK_URL}`

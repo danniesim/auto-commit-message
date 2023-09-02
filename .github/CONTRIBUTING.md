@@ -30,7 +30,7 @@ If you encounter any issues while using the project, please report them on the G
 
 ## Contacts
 
-If you have any questions about contributing to the project, please contact by [creating an issue](https://github.com/di-sukharev/open-commit/issues) on the GitHub issue tracker.
+If you have any questions about contributing to the project, please create an issue using the GitHub issue tracker.
 
 ## License
 

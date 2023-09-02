@@ -12,3 +12,4 @@ src/*.json
 .idea
 test.ts
 out/
+yarn-error.log

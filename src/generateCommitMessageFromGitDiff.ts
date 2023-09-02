@@ -231,11 +231,11 @@ export function getCommitMsgsFromFileDiffs(
         separator,
         maxDiffLength,
         (messages: (string | undefined)[]) => {
-          messagesAcc.push(messages.join('\n'));
+          messagesAcc.push(messages.join('\n\n'));
         }
       );
     } else {
-      winston.info('generating commit message from file-diff (${tokCount})');
+      winston.info(`generating commit message from file-diff (${tokCount})`);
       const messages = generateCommitMessageChatCompletionPrompt(
         separator + fileDiff
       );

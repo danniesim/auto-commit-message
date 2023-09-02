@@ -1,5 +1,5 @@
 {
-  "name": "opencommit",
+  "name": "auto-commit-message",
   "version": "2.4.2",
   "description": "Auto-generate impressive commits in 1 second. Killing lame commits with AI 🤯🔫",
   "keywords": [
@@ -16,14 +16,13 @@
   ],
   "main": "cli.js",
   "bin": {
-    "opencommit": "./out/cli.cjs",
     "oco": "./out/cli.cjs"
   },
   "repository": {
-    "url": "https://github.com/di-sukharev/opencommit"
+    "url": "https://github.com/danniesim/opencommit"
   },
   "type": "module",
-  "author": "https://github.com/di-sukharev",
+  "author": "https://github.com/danniesim",
   "license": "MIT",
   "files": [
     "out/**/*"
@@ -38,13 +37,9 @@
   },
   "scripts": {
     "watch": "npm run -S build -- --sourcemap --watch",
-    "start": "node ./out/cli.cjs",
     "dev": "ts-node ./src/cli.ts",
     "build": "rimraf out && node esbuild.config.js",
-    "deploy": "npm run build:push && npm version patch && git push --tags && git push && npm publish --tag latest",
-    "build:push": "npm run build && git add . && git commit -m 'build' && git push",
-    "lint": "eslint src --ext ts && tsc --noEmit",
-    "format": "prettier --write src"
+    "deploy": "npm run build:push && npm version patch && git push --tags && git push && npm publish --tag latest"
   },
   "devDependencies": {
     "@types/ini": "^1.3.31",

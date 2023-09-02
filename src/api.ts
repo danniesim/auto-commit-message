@@ -23,19 +23,19 @@ let apiKey = config?.OCO_OPENAI_API_KEY;
 const [command, mode] = process.argv.slice(2);
 
 if (!apiKey && command !== 'config' && mode !== CONFIG_MODES.set) {
-  winston.info('opencommit');
+  winston.info('AutoCommitMessage');
 
   winston.info(
     'OCO_OPENAI_API_KEY is not set, please run `oco config set OCO_OPENAI_API_KEY=<your token>. Make sure you add payment details, so API works.`'
   );
   winston.info(
-    'For help look into README https://github.com/di-sukharev/opencommit#setup'
+    'For help look into README https://github.com/danniesim/opencommit#setup'
   );
 
   process.exit(1);
 }
 
-const MODEL = config?.OCO_MODEL || 'gpt-3.5-turbo';
+const MODEL = config?.OCO_MODEL || 'gpt-3.5-turbo-16k';
 
 class OpenAi {
   private openAiApiConfiguration = new OpenAiApiConfiguration({
@@ -109,10 +109,10 @@ class OpenAi {
 export const getOpenCommitLatestVersion = ():
   string | undefined => {
   try {
-    const { stdout } = execaSync('npm', ['view', 'opencommit', 'version']);
+    const { stdout } = execaSync('npm', ['view', 'auto-commit-message', 'version']);
     return stdout;
   } catch (_) {
-    winston.info('Error while getting the latest version of opencommit');
+    winston.info('Error while getting the latest version of auto-commit-message');
     return undefined;
   }
 };

@@ -37,7 +37,7 @@ export const prepareCommitMessageHook = async (
 
   if (!staged) return;
 
-  winston.info('opencommit');
+  winston.info('AutoCommitMessage');
 
   const config = getConfig();
 
@@ -47,7 +47,7 @@ export const prepareCommitMessageHook = async (
     );
   }
 
-  winston.info('Generating commit message');
+  winston.info('generating commit message...');
 
   let done: boolean = false;
 
