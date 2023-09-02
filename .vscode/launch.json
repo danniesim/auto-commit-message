@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Dev",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "yarn",
+      "cwd": "${workspaceFolder}",
+      "runtimeArgs": ["run", "dev", "./tmp.txt"],
+      "console": "internalConsole",
+      "outputCapture": "std"
+    },
+    {
+      "name": "Dev (Lorensim)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npx",
+      "cwd": "${workspaceFolder}/../lorensim",
+      "runtimeArgs": [
+        "ts-node",
+        "${workspaceFolder}/src/cli.ts",
+        "${workspaceFolder}/tmp.txt"
+      ],
+      "console": "internalConsole",
+      "outputCapture": "std"
+    }
+  ]
+}

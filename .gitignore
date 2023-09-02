@@ -7,7 +7,6 @@ application.log
 /*.env
 logfile.log
 uncaughtExceptions.log
-.vscode
 src/*.json
 .idea
 test.ts
