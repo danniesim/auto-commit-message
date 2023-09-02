@@ -84,8 +84,8 @@ class OpenAi {
     const params = {
       model: MODEL,
       messages,
-      temperature: 0,
-      top_p: 0.1,
+      temperature: 0.6,
+      top_p: 0.5,
       max_tokens: maxTokens || 500
     };
     const REQUEST_TOKENS = messages

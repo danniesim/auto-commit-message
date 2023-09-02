@@ -17,43 +17,43 @@ const INIT_MESSAGES_PROMPT: Array<ChatCompletionRequestMessage> = [
     role: ChatCompletionRequestMessageRoleEnum.System,
     // prettier-ignore
     content: `You are to act as the author of a commit message in git. Your mission is to create clean and comprehensive commit messages in the conventional commit convention and explain WHAT were the changes and WHY the changes were done. I'll send you an output of 'git diff --staged' command, and you convert it into a commit message.
-${config?.OCO_EMOJI ? 'Use GitMoji convention to preface the commit.' : 'Do not preface the commit with anything.'}
-${config?.OCO_DESCRIPTION ? 'Add a short description of WHY the changes are done after the commit message. Don\'t start it with "This commit", just describe the changes.' : "Don't add any descriptions to the commit, only commit message."}
-Use the present tense. Lines must not be longer than 74 characters. Use ${translation.localLanguage} to answer.`
+${config?.OCO_EMOJI ? 'Always use GitMoji convention and corresponding file changed to prefix a change described.' : 'Always use the corresponding file changed to prefix a change described.'}
+${config?.OCO_DESCRIPTION ? 'Add a short description of why the changes are done after the commit message. Don\'t start it with "This commit", just describe the changes.' : "Don't add any descriptions to the commit, only commit message."}
+Use the present tense and keep it summarized. Lines must not be longer than 74 characters. Use ${translation.localLanguage} to answer.`
   },
-  {
-    role: ChatCompletionRequestMessageRoleEnum.User,
-    content: `diff --git a/src/server.ts b/src/server.ts
-index ad4db42..f3b18a9 100644
---- a/src/server.ts
-+++ b/src/server.ts
-@@ -10,7 +10,7 @@
-import {
-  initWinstonLogger();
+//   {
+//     role: ChatCompletionRequestMessageRoleEnum.User,
+//     content: `diff --git a/src/server.ts b/src/server.ts
+// index ad4db42..f3b18a9 100644
+// --- a/src/server.ts
+// +++ b/src/server.ts
+// @@ -10,7 +10,7 @@
+// import {
+//   initWinstonLogger();
   
-  const app = express();
- -const port = 7799;
- +const PORT = 7799;
+//   const app = express();
+//  -const port = 7799;
+//  +const PORT = 7799;
   
-  app.use(express.json());
+//   app.use(express.json());
   
-@@ -34,6 +34,6 @@
-app.use((_, res, next) => {
-  // ROUTES
-  app.use(PROTECTED_ROUTER_URL, protectedRouter);
+// @@ -34,6 +34,6 @@
+// app.use((_, res, next) => {
+//   // ROUTES
+//   app.use(PROTECTED_ROUTER_URL, protectedRouter);
   
- -app.listen(port, () => {
- -  console.log(\`Server listening on port \${port}\`);
- +app.listen(process.env.PORT || PORT, () => {
- +  console.log(\`Server listening on port \${PORT}\`);
-  });`
-  },
-  {
-    role: ChatCompletionRequestMessageRoleEnum.Assistant,
-    content: `${config?.OCO_EMOJI ? '🐛 ' : ''}${translation.commitFix}
-${config?.OCO_EMOJI ? '✨ ' : ''}${translation.commitFeat}
-${config?.OCO_DESCRIPTION ? translation.commitDescription : ''}`
-  }
+//  -app.listen(port, () => {
+//  -  console.log(\`Server listening on port \${port}\`);
+//  +app.listen(process.env.PORT || PORT, () => {
+//  +  console.log(\`Server listening on port \${PORT}\`);
+//   });`
+//   },
+//   {
+//     role: ChatCompletionRequestMessageRoleEnum.Assistant,
+//     content: `${config?.OCO_EMOJI ? '🐛 ' : ''}${translation.commitFix}
+// ${config?.OCO_EMOJI ? '✨ ' : ''}${translation.commitFeat}
+// ${config?.OCO_DESCRIPTION ? translation.commitDescription : ''}`
+//   }
 ];
 
 const generateCommitMessageChatCompletionPrompt = (
@@ -235,12 +235,13 @@ export function getCommitMsgsFromFileDiffs(
         }
       );
     } else {
-      winston.info(`generating commit message from file-diff (${tokCount})`);
+      winston.info(`generating commit message from file-diff (${tokCount}) `);
       const messages = generateCommitMessageChatCompletionPrompt(
         separator + fileDiff
       );
 
       api.generateCommitMessage(messages, (commitMessage: string | undefined) => {
+        winston.info(`file-diff #${messagesAcc.length + 1} generate complete`);
         messagesAcc.push(commitMessage);
       });
     }
