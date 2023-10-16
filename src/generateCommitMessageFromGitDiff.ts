@@ -1,6 +1,5 @@
 import {
-  ChatCompletionRequestMessage,
-  ChatCompletionRequestMessageRoleEnum
+  OpenAI
 } from 'openai';
 import { api } from './api';
 import { getConfig } from './commands/config';
@@ -12,24 +11,24 @@ import winston from 'winston';
 const config = getConfig();
 const translation = i18n[(config?.OCO_LANGUAGE as I18nLocals) || 'en'];
 
-const INIT_MESSAGES_PROMPT: Array<ChatCompletionRequestMessage> = [
+const INIT_MESSAGES_PROMPT: Array<OpenAI.Chat.Completions.ChatCompletionMessage> = [
   {
-    role: ChatCompletionRequestMessageRoleEnum.System,
+    role: 'system',
     // prettier-ignore
     content: `You are to act as the author of a commit message in git. Your mission is to create clean and comprehensive commit messages in the conventional commit convention and explain WHAT were the changes and WHY the changes were done. I'll send you an output of 'git diff --staged' command, and you convert it into a commit message.
 ${config?.OCO_EMOJI ? 'Always use GitMoji convention and corresponding file changed to prefix a change described.' : 'Always use the corresponding file changed to prefix a change described.'}
 ${config?.OCO_DESCRIPTION ? 'Add a short description of why the changes are done after the commit message. Don\'t start it with "This commit", just describe the changes.' : "Don't add any descriptions to the commit, only commit message."}
 Use the present tense and keep it summarized. Lines must not be longer than 74 characters. Use ${translation.localLanguage} to answer.`
   },
-//   {
-//     role: ChatCompletionRequestMessageRoleEnum.User,
-//     content: `diff --git a/src/server.ts b/src/server.ts
-// index ad4db42..f3b18a9 100644
-// --- a/src/server.ts
-// +++ b/src/server.ts
-// @@ -10,7 +10,7 @@
-// import {
-//   initWinstonLogger();
+  {
+    role: 'user',
+    content: `diff --git a/src/server.ts b/src/server.ts
+index ad4db42..f3b18a9 100644
+--- a/src/server.ts
++++ b/src/server.ts
+@@ -10,7 +10,7 @@
+import {
+  initWinstonLogger();
   
 //   const app = express();
 //  -const port = 7799;
@@ -42,27 +41,27 @@ Use the present tense and keep it summarized. Lines must not be longer than 74 c
 //   // ROUTES
 //   app.use(PROTECTED_ROUTER_URL, protectedRouter);
   
-//  -app.listen(port, () => {
-//  -  console.log(\`Server listening on port \${port}\`);
-//  +app.listen(process.env.PORT || PORT, () => {
-//  +  console.log(\`Server listening on port \${PORT}\`);
-//   });`
-//   },
-//   {
-//     role: ChatCompletionRequestMessageRoleEnum.Assistant,
-//     content: `${config?.OCO_EMOJI ? '🐛 ' : ''}${translation.commitFix}
-// ${config?.OCO_EMOJI ? '✨ ' : ''}${translation.commitFeat}
-// ${config?.OCO_DESCRIPTION ? translation.commitDescription : ''}`
-//   }
+ -app.listen(port, () => {
+ -  console.log(\`Server listening on port \${port}\`);
+ +app.listen(process.env.PORT || PORT, () => {
+ +  console.log(\`Server listening on port \${PORT}\`);
+  });`
+  },
+  {
+    role: 'assistant',
+    content: `${config?.OCO_EMOJI ? '🐛 ' : ''}${translation.commitFix}
+${config?.OCO_EMOJI ? '✨ ' : ''}${translation.commitFeat}
+${config?.OCO_DESCRIPTION ? translation.commitDescription : ''}`
+  }
 ];
 
 const generateCommitMessageChatCompletionPrompt = (
   diff: string
-): Array<ChatCompletionRequestMessage> => {
+): Array<OpenAI.Chat.Completions.ChatCompletionMessage> => {
   const chatContextAsCompletionRequest = [...INIT_MESSAGES_PROMPT];
 
   chatContextAsCompletionRequest.push({
-    role: ChatCompletionRequestMessageRoleEnum.User,
+    role: 'user',
     content: diff
   });
 
@@ -111,7 +110,7 @@ export const generateCommitMessageByDiff = (
   } else {
     const messages = generateCommitMessageChatCompletionPrompt(diff);
 
-    api.generateCommitMessage(messages, (commitMessage: string | undefined) => {
+    api.generateCommitMessage(messages, (commitMessage: string | null) => {
       if (!commitMessage)
         throw new Error(GenerateCommitMessageErrorEnum.emptyMessage);
       cb(commitMessage);
@@ -123,7 +122,7 @@ function getMessagesByChangesInFile(
   fileDiff: string,
   separator: string,
   maxChangeLength: number,
-  cb: (messages: (string | undefined)[]) => void
+  cb: (messages: (string | null)[]) => void
 ) {
   const hunkHeaderSeparator = '@@ ';
   const [fileHeader, ...fileDiffByLines] = fileDiff.split(hunkHeaderSeparator);
@@ -136,7 +135,7 @@ function getMessagesByChangesInFile(
   );
 
   let requestCount = 0;
-  let commitMsgsFromFileLineDiffs: (string | undefined)[] = [];
+  let commitMsgsFromFileLineDiffs: (string | null)[] = [];
 
   const f = (lineDiff: string) => {
     const messages = generateCommitMessageChatCompletionPrompt(
@@ -147,7 +146,7 @@ function getMessagesByChangesInFile(
     
     requestCount = requestCount + 1;
     winston.info(`generate commit message from line-diff (${requestCount})`);
-    api.generateCommitMessage(messages, (commitMessage: string | undefined) => {
+    api.generateCommitMessage(messages, (commitMessage: string | null) => {
       commitMsgsFromFileLineDiffs.push(commitMessage);
       winston.info(`line-diff generate complete (${commitMsgsFromFileLineDiffs.length} of ${requestCount})`);
       if (commitMsgsFromFileLineDiffs.length === requestCount) {
@@ -219,7 +218,7 @@ export function getCommitMsgsFromFileDiffs(
   // merge multiple files-diffs into 1 prompt to save tokens
   const mergedFilesDiffs = mergeDiffs(diffByFiles, maxDiffLength);
 
-  let messagesAcc: (string | undefined)[] = [];
+  let messagesAcc: (string | null)[] = [];
 
   for (const fileDiff of mergedFilesDiffs) {
     const tokCount = tokenCount(fileDiff)
@@ -230,7 +229,7 @@ export function getCommitMsgsFromFileDiffs(
         fileDiff,
         separator,
         maxDiffLength,
-        (messages: (string | undefined)[]) => {
+        (messages: (string | null)[]) => {
           messagesAcc.push(messages.join('\n\n'));
         }
       );
@@ -240,7 +239,7 @@ export function getCommitMsgsFromFileDiffs(
         separator + fileDiff
       );
 
-      api.generateCommitMessage(messages, (commitMessage: string | undefined) => {
+      api.generateCommitMessage(messages, (commitMessage: string | null) => {
         winston.info(`file-diff #${messagesAcc.length + 1} generate complete`);
         messagesAcc.push(commitMessage);
       });

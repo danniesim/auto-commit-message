@@ -16,9 +16,12 @@ export enum CONFIG_KEYS {
   OCO_OPENAI_API_KEY = 'OCO_OPENAI_API_KEY',
   OCO_OPENAI_MAX_TOKENS = 'OCO_OPENAI_MAX_TOKENS',
   OCO_OPENAI_BASE_PATH = 'OCO_OPENAI_BASE_PATH',
+  OCO_OPENAI_API_VERSION = 'OCO_OPENAI_API_VERSION',
+  OCO_OPENAI_API_TYPE = 'OCO_OPENAI_API_TYPE',
   OCO_DESCRIPTION = 'OCO_DESCRIPTION',
   OCO_EMOJI = 'OCO_EMOJI',
   OCO_MODEL = 'OCO_MODEL',
+  OCO_AZURE_DEPLOYMENT_NAME = 'OCO_AZURE_DEPLOYMENT_NAME',
   OCO_LANGUAGE = 'OCO_LANGUAGE',
   OCO_MESSAGE_TEMPLATE_PLACEHOLDER = 'OCO_MESSAGE_TEMPLATE_PLACEHOLDER',
   OCO_DEFAULT_MODEL_TOKEN_LIMIT = 'OCO_DEFAULT_MODEL_TOKEN_LIMIT'
@@ -48,16 +51,11 @@ const validateConfig = (
 export const configValidators = {
   [CONFIG_KEYS.OCO_OPENAI_API_KEY](value: any) {
     validateConfig(CONFIG_KEYS.OCO_OPENAI_API_KEY, value, 'Cannot be empty');
-    validateConfig(
-      CONFIG_KEYS.OCO_OPENAI_API_KEY,
-      value.startsWith('sk-'),
-      'Must start with "sk-"'
-    );
-    validateConfig(
-      CONFIG_KEYS.OCO_OPENAI_API_KEY,
-      value.length === 51,
-      'Must be 51 characters long'
-    );
+    // validateConfig(
+    //   CONFIG_KEYS.OCO_OPENAI_API_KEY,
+    //   value.length === 51,
+    //   'Must be 51 characters long'
+    // );
 
     return value;
   },
@@ -119,6 +117,24 @@ export const configValidators = {
     return value;
   },
 
+  [CONFIG_KEYS.OCO_OPENAI_API_VERSION](value: any) {
+    validateConfig(
+      CONFIG_KEYS.OCO_OPENAI_API_VERSION,
+      typeof value === 'string',
+      'Must be string'
+    );
+    return value;
+  },
+
+  [CONFIG_KEYS.OCO_OPENAI_API_TYPE](value: any) {
+    validateConfig(
+      CONFIG_KEYS.OCO_OPENAI_API_TYPE,
+      typeof value === 'string',
+      'Must be string'
+    );
+    return value;
+  },
+
   [CONFIG_KEYS.OCO_MODEL](value: any) {
     validateConfig(
       CONFIG_KEYS.OCO_MODEL,
@@ -129,6 +145,14 @@ export const configValidators = {
         'gpt-3.5-turbo-0613'
       ].includes(value),
       `${value} is not supported yet, use 'gpt-4', 'gpt-3.5-turbo-0613', 'gpt-3.5-turbo-0613' or 'gpt-3.5-turbo' (default)`
+    );
+    return value;
+  },
+  [CONFIG_KEYS.OCO_AZURE_DEPLOYMENT_NAME](value: any) {
+    validateConfig(
+      CONFIG_KEYS.OCO_AZURE_DEPLOYMENT_NAME,
+      typeof value === 'string',
+      'Must be string'
     );
     return value;
   },
@@ -173,9 +197,12 @@ export const getConfig = (): ConfigType | null => {
       ? Number(process.env.OCO_OPENAI_MAX_TOKENS)
       : undefined,
     OCO_OPENAI_BASE_PATH: process.env.OCO_OPENAI_BASE_PATH,
+    OCO_OPENAI_API_VERSION: process.env.OCO_OPENAI_API_VERSION,
+    OCO_OPENAI_API_TYPE: process.env.OCO_OPENAI_API_TYPE,
     OCO_DESCRIPTION: process.env.OCO_DESCRIPTION === 'true' ? true : false,
     OCO_EMOJI: process.env.OCO_EMOJI === 'true' ? true : false,
     OCO_MODEL: process.env.OCO_MODEL || 'gpt-3.5-turbo-16k',
+    OCO_AZURE_DEPLOYMENT_NAME: process.env.OCO_AZURE_DEPLOYMENT_NAME,
     OCO_LANGUAGE: process.env.OCO_LANGUAGE || 'en',
     OCO_MESSAGE_TEMPLATE_PLACEHOLDER:
       process.env.OCO_MESSAGE_TEMPLATE_PLACEHOLDER || '$msg',

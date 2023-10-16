@@ -2,14 +2,19 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Dev",
-      "type": "node",
-      "request": "launch",
-      "runtimeExecutable": "yarn",
-      "cwd": "${workspaceFolder}",
-      "runtimeArgs": ["run", "dev", "./tmp.txt"],
-      "console": "internalConsole",
-      "outputCapture": "std"
+        "name": "Launch via NPM",
+        "request": "launch",
+        "runtimeArgs": [
+            "run-script",
+            "dev",
+            "${workspaceFolder}/tmp.txt"
+        ],
+        "runtimeExecutable": "npm",
+        "skipFiles": [
+            "<node_internals>/**"
+        ],
+        "type": "node",
+        "console": "integratedTerminal"
     },
     {
       "name": "Dev (Lorensim)",

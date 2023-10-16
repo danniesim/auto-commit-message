@@ -1,9 +1,6 @@
 import winston from 'winston';
 import {
-  ChatCompletionRequestMessage,
-  Configuration as OpenAiApiConfiguration,
-  OpenAIApi,
-  CreateChatCompletionResponse
+  OpenAI
 } from 'openai';
 
 import {
@@ -19,6 +16,8 @@ const config = getConfig();
 let maxTokens = config?.OCO_OPENAI_MAX_TOKENS;
 let basePath = config?.OCO_OPENAI_BASE_PATH;
 let apiKey = config?.OCO_OPENAI_API_KEY;
+let apiVersion = config?.OCO_OPENAI_API_VERSION;
+let azureDeploymentName = config?.OCO_AZURE_DEPLOYMENT_NAME
 
 const [command, mode] = process.argv.slice(2);
 
@@ -38,32 +37,34 @@ if (!apiKey && command !== 'config' && mode !== CONFIG_MODES.set) {
 const MODEL = config?.OCO_MODEL || 'gpt-3.5-turbo-16k';
 
 class OpenAi {
-  private openAiApiConfiguration = new OpenAiApiConfiguration({
-    apiKey: apiKey
-  });
-  private openAI!: OpenAIApi;
+  private openAI: OpenAI;
 
   constructor() {
-    if (basePath) {
-      this.openAiApiConfiguration.basePath = basePath;
-    }
-    this.openAI = new OpenAIApi(this.openAiApiConfiguration);
+    // if (basePath) {
+    //   this.openAiApiConfiguration.basePath = basePath;
+    // }
+    this.openAI = new OpenAI({
+      apiKey,
+      baseURL: `${basePath}/${azureDeploymentName}`,
+      defaultQuery: { 'api-version': apiVersion },
+      defaultHeaders: { 'api-key': apiKey },
+    });
   }
 
-  private sendRequest = (params: any, callback: (message: CreateChatCompletionResponse) => void): any => {
+  private sendRequest = (params: any, callback: (message: OpenAI.Chat.ChatCompletion) => void): any => {
     let tries = 1;
     const f = () => {
-      this.openAI.createChatCompletion(params)
-      .then((res) => {
-        callback(res.data);
+      this.openAI.chat.completions.create(params)
+      .then((res: OpenAI.Chat.ChatCompletion) => {
+        callback(res);
       })
       .catch((err) => {
         tries = tries + 1;
-        if (err.response.status == 429 && tries < 10) {
-          let resetReq =  Number(err.response.headers["x-ratelimit-reset-requests"].match(/(\d+)/)[0]);
+        if (err.status == 429 && tries < 10) {
+          let resetReq =  Number(err.headers["x-ratelimit-reset-requests"].match(/(\d+)/)[0]);
           if (!err.response.headers["x-ratelimit-reset-requests"].endsWith("ms")) resetReq = resetReq * 1000;
 
-          let resetTok = Number(err.response.headers["x-ratelimit-reset-tokens"].match(/(\d+)/)[0]);
+          let resetTok = Number(err.headers["x-ratelimit-reset-tokens"].match(/(\d+)/)[0]);
           if (!err.response.headers["x-ratelimit-reset-tokens"].endsWith("ms")) resetTok = resetTok * 1000;
 
           const delayMs = Math.max(resetReq, resetTok);
@@ -78,8 +79,8 @@ class OpenAi {
   }
   
   public generateCommitMessage = (
-    messages: Array<ChatCompletionRequestMessage>,
-    cb: (message: string | undefined) => void
+    messages: Array<OpenAI.Chat.Completions.ChatCompletionMessage>,
+    cb: (message: string | null) => void
   ) => {
     const params = {
       model: MODEL,
