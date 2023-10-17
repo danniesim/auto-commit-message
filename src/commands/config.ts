@@ -137,14 +137,9 @@ export const configValidators = {
 
   [CONFIG_KEYS.OCO_MODEL](value: any) {
     validateConfig(
-      CONFIG_KEYS.OCO_MODEL,
-      [
-        'gpt-3.5-turbo',
-        'gpt-4',
-        'gpt-3.5-turbo-16k',
-        'gpt-3.5-turbo-0613'
-      ].includes(value),
-      `${value} is not supported yet, use 'gpt-4', 'gpt-3.5-turbo-0613', 'gpt-3.5-turbo-0613' or 'gpt-3.5-turbo' (default)`
+      CONFIG_KEYS.OCO_AZURE_DEPLOYMENT_NAME,
+      typeof value === 'string',
+      'Must be string'
     );
     return value;
   },

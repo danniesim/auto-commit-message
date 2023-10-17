@@ -17,11 +17,10 @@
         "console": "integratedTerminal"
     },
     {
-      "name": "Dev (Lorensim)",
+      "name": "Dev (Test Repo)",
       "type": "node",
       "request": "launch",
       "runtimeExecutable": "npx",
-      "cwd": "${workspaceFolder}/../lorensim",
       "runtimeArgs": [
         "ts-node",
         "${workspaceFolder}/src/cli.ts",

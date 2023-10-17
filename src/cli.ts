@@ -10,6 +10,9 @@ import { checkIsLatestVersion } from './utils/checkIsLatestVersion';
 
 const extraArgs = process.argv.slice(2);
 
+if (process.env.OCO_TEST_REPO_PATH)
+  process.chdir(process.env.OCO_TEST_REPO_PATH)
+
 cli(
   {
     version: packageJSON.version,

@@ -43,12 +43,18 @@ class OpenAi {
     // if (basePath) {
     //   this.openAiApiConfiguration.basePath = basePath;
     // }
-    this.openAI = new OpenAI({
-      apiKey,
-      baseURL: `${basePath}/${azureDeploymentName}`,
-      defaultQuery: { 'api-version': apiVersion },
-      defaultHeaders: { 'api-key': apiKey },
-    });
+    if (config?.OCO_OPENAI_API_TYPE === "azure") {
+      this.openAI = new OpenAI({
+        apiKey,
+        baseURL: `${basePath}/${azureDeploymentName}`,
+        defaultQuery: { 'api-version': apiVersion },
+        defaultHeaders: { 'api-key': apiKey },
+      });
+    } else {
+      this.openAI = new OpenAI({
+        apiKey
+      });
+    }
   }
 
   private sendRequest = (params: any, callback: (message: OpenAI.Chat.ChatCompletion) => void): any => {
@@ -85,8 +91,8 @@ class OpenAi {
     const params = {
       model: MODEL,
       messages,
-      temperature: 0.6,
-      top_p: 0.5,
+      temperature: 0.2,
+      top_p: 0.95,
       max_tokens: maxTokens || 500
     };
     const REQUEST_TOKENS = messages

@@ -37,7 +37,7 @@ export const getStagedFiles = (): string[] => {
     'rev-parse',
     '--show-toplevel'
   ]);
-  winston.info('gitting staged files');
+  winston.info(`gitting staged files in ${gitDir}`);
   const { stdout: files } = execaSync('git', [
     'diff',
     '--name-only',
