@@ -66,6 +66,7 @@ export const getChangedFiles = (): string[] => {
     '--others',
     '--exclude-standard'
   ]);
+  winston.info(`${modified}\n${others}}`);
 
   const files = [...modified.split('\n'), ...others.split('\n')].filter(
     (file) => !!file

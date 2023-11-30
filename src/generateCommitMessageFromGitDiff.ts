@@ -15,9 +15,21 @@ const INIT_MESSAGES_PROMPT: Array<OpenAI.Chat.Completions.ChatCompletionMessage>
   {
     role: 'system',
     // prettier-ignore
+    content: `You are to act as the author of a commit message in git. Your mission is explain why the changes were made with a clean, descriptive and helpful commit message. I'll send you an output of 'git diff --staged' command, and you convert it into a commit message.
+${config?.OCO_EMOJI ? 'Always use GitMoji convention and widely used Git commit message format, style and conventions.' : 'Use only widely used Git commit message format, style and conventions.'}
+${config?.OCO_DESCRIPTION ? 'Add a short description of why the changes are done before the commit message. Don\'t start it with phrases like "The changes...", just describe the changes.' : "Don't add any descriptions to the commit, only commit message."}
+Use the present tense and keep it concise. Lines must not be longer than 74 characters. Use ${translation.localLanguage} to answer.`
+  },
+];
+
+/*
+const INIT_MESSAGES_PROMPT: Array<OpenAI.Chat.Completions.ChatCompletionMessage> = [
+  {
+    role: 'system',
+    // prettier-ignore
     content: `You are to act as the author of a commit message in git. Your mission is to create clean and comprehensive commit messages in the conventional commit convention and explain WHAT were the changes and WHY the changes were done. I'll send you an output of 'git diff --staged' command, and you convert it into a commit message.
-${config?.OCO_EMOJI ? 'Always use GitMoji convention and corresponding file changed to prefix a change described.' : 'Always use the corresponding file changed to prefix a change described.'}
-${config?.OCO_DESCRIPTION ? 'Add a short description of why the changes are done after the commit message. Don\'t start it with "This commit", just describe the changes.' : "Don't add any descriptions to the commit, only commit message."}
+${config?.OCO_EMOJI ? 'Always use GitMoji convention and git commit messages best practices.' : 'Always use git commit messages best practices.'}
+${config?.OCO_DESCRIPTION ? 'Add a short description of why the changes are done before the commit message. Don\'t start it with phrases like "The changes...", just describe the changes.' : "Don't add any descriptions to the commit, only commit message."}
 Use the present tense and keep it summarized. Lines must not be longer than 74 characters. Use ${translation.localLanguage} to answer.`
   },
   {
@@ -49,11 +61,13 @@ import {
   },
   {
     role: 'assistant',
-    content: `${config?.OCO_EMOJI ? '🐛 ' : ''}${translation.commitFix}
-${config?.OCO_EMOJI ? '✨ ' : ''}${translation.commitFeat}
-${config?.OCO_DESCRIPTION ? translation.commitDescription : ''}`
+    content: `${config?.OCO_DESCRIPTION ? translation.commitDescription : ''}
+${config?.OCO_EMOJI ? '🐛 ' : '- '}${translation.commitFix}
+${config?.OCO_EMOJI ? '✨ ' : '- '}${translation.commitFeat}
+`
   }
 ];
+*/
 
 const generateCommitMessageChatCompletionPrompt = (
   diff: string
