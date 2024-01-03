@@ -113,6 +113,6 @@ export const getDiff = (files: string[]): string => {
     '--',
     ...filesWithoutLocks
   ]);
-
+  winston.info("git diff " + diff.length + " bytes");
   return diff;
 };
