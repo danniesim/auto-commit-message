@@ -14,11 +14,16 @@ const translation = i18n[(config?.OCO_LANGUAGE as I18nLocals) || 'en'];
 const INIT_MESSAGES_PROMPT: Array<OpenAI.Chat.Completions.ChatCompletionMessage> = [
   {
     role: 'system',
-    // prettier-ignore
-    content: `You are to act as the author of a commit message in git. Your mission is explain why the changes were made with a clean, descriptive and helpful commit message. I'll send you an output of 'git diff --staged' command, and you convert it into a commit message.
-${config?.OCO_EMOJI ? 'Always use GitMoji convention and widely used Git commit message format, style and conventions.' : 'Use only widely used Git commit message format, style and conventions.'}
-${config?.OCO_DESCRIPTION ? 'Add a short description of why the changes are done before the commit message. Don\'t start it with phrases like "The changes...", just describe the changes.' : "Don't add any descriptions to the commit, only commit message."}
-Use the present tense and keep it concise. Lines must not be longer than 74 characters. Use ${translation.localLanguage} to answer.`
+    content: `You are to act as the author of a git commit message. ` +
+    `Your goal is to give the reason of why the changes where made with items categorized by feature, bug or chore. ` +
+    `I'll send you an output of 'git diff --staged' command for you to make from a commit message. ` +
+    `${config?.OCO_EMOJI ? 'Always use GitMoji convention and widely used Git commit message format, style and conventions. '
+      : 'Use widely accepted Git commit message style and conventions.'}`  + 
+    `${config?.OCO_DESCRIPTION ? 'Add a short description of why the changes are done before the commit message. ' +
+      'Don\'t start it with phrases like "The changes...", just describe the changes. '
+      : ' '}` + 
+    "Use present tense and keep the message to less than 72 characters. " +
+    `Use ${translation.localLanguage} to answer.`
   },
 ];
 
