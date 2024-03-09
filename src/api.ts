@@ -66,7 +66,7 @@ class OpenAi {
       })
       .catch((err) => {
         tries = tries + 1;
-        if (err.status == 429 && tries < 10) {
+        if (err.status == 429 && tries < 10 && err.headers["x-ratelimit-reset-requests"]) {
           let resetReq =  Number(err.headers["x-ratelimit-reset-requests"].match(/(\d+)/)[0]);
           if (!err.response.headers["x-ratelimit-reset-requests"].endsWith("ms")) resetReq = resetReq * 1000;
 
@@ -85,7 +85,7 @@ class OpenAi {
   }
   
   public generateCommitMessage = (
-    messages: Array<OpenAI.Chat.Completions.ChatCompletionMessage>,
+    messages: Array<OpenAI.Chat.Completions.ChatCompletionMessageParam>,
     cb: (message: string | null) => void
   ) => {
     const params = {
@@ -96,7 +96,7 @@ class OpenAi {
       max_tokens: maxTokens || 500
     };
     const REQUEST_TOKENS = messages
-      .map((msg) => tokenCount(msg.content ?? '') + 4)
+      .map((msg) => tokenCount(msg.content?.toString() ?? '') + 4)
       .reduce((a, b) => a + b, 0);
 
     const DEFAULT_MODEL_TOKEN_LIMIT = config?.OCO_DEFAULT_MODEL_TOKEN_LIMIT || 2048;

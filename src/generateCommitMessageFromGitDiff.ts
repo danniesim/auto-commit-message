@@ -7,11 +7,12 @@ import { mergeDiffs } from './utils/mergeDiffs';
 import { i18n, I18nLocals } from './i18n';
 import { tokenCount } from './utils/tokenCount';
 import winston from 'winston';
+import { ChatCompletionMessageParam } from 'openai/resources';
 
 const config = getConfig();
 const translation = i18n[(config?.OCO_LANGUAGE as I18nLocals) || 'en'];
 
-const INIT_MESSAGES_PROMPT: Array<OpenAI.Chat.Completions.ChatCompletionMessage> = [
+const INIT_MESSAGES_PROMPT: Array<OpenAI.Chat.Completions.ChatCompletionSystemMessageParam> = [
   {
     role: 'system',
     content: `You are to act as the author of a git commit message. ` +
@@ -76,8 +77,8 @@ ${config?.OCO_EMOJI ? '✨ ' : '- '}${translation.commitFeat}
 
 const generateCommitMessageChatCompletionPrompt = (
   diff: string
-): Array<OpenAI.Chat.Completions.ChatCompletionMessage> => {
-  const chatContextAsCompletionRequest = [...INIT_MESSAGES_PROMPT];
+): Array<OpenAI.Chat.Completions.ChatCompletionMessageParam> => {
+  const chatContextAsCompletionRequest: ChatCompletionMessageParam[] = [...INIT_MESSAGES_PROMPT];
 
   chatContextAsCompletionRequest.push({
     role: 'user',
